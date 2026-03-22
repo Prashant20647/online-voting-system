@@ -1,0 +1,4 @@
+Flask
+gunicorn
+werkzeug
+psycopg2-binary
