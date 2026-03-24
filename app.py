@@ -5,7 +5,6 @@ from werkzeug.utils import secure_filename
 
 # DB imports
 import sqlite3
-import psycopg2
 
 app = Flask(__name__)
 app.secret_key = "secret123"
@@ -25,10 +24,10 @@ def get_db_connection():
     DATABASE_URL = os.environ.get("DATABASE_URL")
 
     if DATABASE_URL:
+        import psycopg2
         conn = psycopg2.connect(DATABASE_URL)
     else:
-        conn = sqlite3.connect("database.db")
-        conn.row_factory = sqlite3.Row  # FIX
+        conn = sqlite3.connect("database.db", check_same_thread=False)
 
     return conn
 
