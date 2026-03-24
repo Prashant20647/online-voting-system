@@ -226,6 +226,7 @@ Remove
 <th>Username</th>
 <th>Voter ID</th>
 <th>Status</th>
+<th>Action</th> <!-- ✅ NEW -->
 </tr>
 </thead>
 
@@ -241,6 +242,14 @@ Remove
 
 <td>
 <span class="text-success">Verified</span>
+</td>
+
+<td>
+<a href="/delete_user/{{ v[0] }}" 
+   onclick="return confirm('Are you sure you want to delete this user?')"
+   class="btn btn-danger btn-sm">
+Remove
+</a>
 </td>
 
 </tr>
