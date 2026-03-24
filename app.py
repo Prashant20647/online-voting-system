@@ -28,6 +28,7 @@ def get_db_connection():
         conn = psycopg2.connect(DATABASE_URL)
     else:
         conn = sqlite3.connect("database.db")
+        conn.row_factory = sqlite3.Row  # FIX
 
     return conn
 
@@ -48,7 +49,6 @@ def init_db():
     conn = get_db_connection()
     cur = conn.cursor()
 
-    # detect DB type
     if os.environ.get("DATABASE_URL"):
         id_type = "SERIAL PRIMARY KEY"
     else:
@@ -103,13 +103,17 @@ init_db()
 
 @app.route('/')
 def home():
-    conn = get_db_connection()
-    cur = conn.cursor()
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
 
-    cur.execute("SELECT * FROM elections")
-    elections = cur.fetchall()
+        cur.execute(q("SELECT * FROM elections"))
+        elections = cur.fetchall()
 
-    conn.close()
+        conn.close()
+    except:
+        elections = []
+
     return render_template("index.html", elections=elections)
 
 
@@ -280,13 +284,13 @@ def admin():
     conn = get_db_connection()
     cur = conn.cursor()
 
-    cur.execute("SELECT * FROM elections")
+    cur.execute(q("SELECT * FROM elections"))
     elections = cur.fetchall()
 
-    cur.execute("SELECT * FROM candidates")
+    cur.execute(q("SELECT * FROM candidates"))
     candidates = cur.fetchall()
 
-    cur.execute("SELECT id,username,voter_id,approved FROM users")
+    cur.execute(q("SELECT id,username,voter_id,approved FROM users"))
     voters = cur.fetchall()
 
     conn.close()
@@ -414,5 +418,7 @@ def logout():
     return redirect('/')
 
 
-if __name__ == '__main__':
-    app.run(debug=True)
+# IMPORTANT FIX FOR RENDER
+if __name__== '__main__':
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
