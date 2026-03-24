@@ -343,17 +343,35 @@ def toggle_election(election_id):
 
 # ---------------- DELETE ----------------
 
-@app.route('/delete_candidate/<int:id>')
-def delete_candidate(id):
+# ---------------- DELETE USER ----------------
+
+@app.route('/delete_user/<int:id>')
+def delete_user(id):
+
+    if 'admin' not in session:
+        return redirect('/admin_login')
 
     conn = get_db_connection()
     cur = conn.cursor()
 
-    cur.execute(q("DELETE FROM candidates WHERE id=?"), (id,))
-    conn.commit()
+    # get username first
+    cur.execute(q("SELECT username FROM users WHERE id=?"), (id,))
+    user = cur.fetchone()
+
+    if user:
+        username = user[0]
+
+        # delete votes of that user
+        cur.execute(q("DELETE FROM votes WHERE username=?"), (username,))
+
+        # delete user
+        cur.execute(q("DELETE FROM users WHERE id=?"), (id,))
+
+        conn.commit()
 
     conn.close()
     return redirect('/admin')
+
 
 
 # ---------------- ADD ----------------
