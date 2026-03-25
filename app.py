@@ -90,7 +90,7 @@ def home():
     return render_template("index.html", elections=elections)
 
 
-# ---------------- CREATE ELECTION (FIXED) ----------------
+# ---------------- CREATE ELECTION ----------------
 
 @app.route('/create_election', methods=['POST'])
 def create_election():
@@ -108,7 +108,33 @@ def create_election():
     conn.close()
 
     return redirect('/admin')
+# ---------------- TOGGLE ELECTION ----------------
 
+@app.route('/toggle_election/<int:id>')
+def toggle_election(id):
+
+    if 'admin' not in session:
+        return redirect('/admin_login')
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    # check current status
+    cur.execute("SELECT status FROM elections WHERE id=?", (id,))
+    status = cur.fetchone()
+
+    if status:
+        if status[0] == "running":
+            new_status = "stopped"
+        else:
+            new_status = "running"
+
+        cur.execute("UPDATE elections SET status=? WHERE id=?", (new_status, id))
+        conn.commit()
+
+    conn.close()
+
+    return redirect('/admin')
 
 # ---------------- REGISTER ----------------
 
@@ -229,7 +255,7 @@ def delete_user(id):
     return redirect('/admin')
 
 
-# ---------------- DELETE CANDIDATE (FIXED) ----------------
+# ---------------- DELETE CANDIDATE ----------------
 
 @app.route('/delete_candidate/<int:id>')
 def delete_candidate(id):
