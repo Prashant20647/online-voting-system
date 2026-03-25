@@ -279,7 +279,102 @@ def add_candidate():
         conn.close()
 
     return redirect('/admin')
+# ---------------- VOTE ----------------
 
+@app.route('/vote/<int:election_id>', methods=['GET','POST'])
+def vote(election_id):
+
+    if 'username' not in session:
+        return redirect('/login')
+
+    username = session['username']
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute("SELECT approved FROM users WHERE username=?", (username,))
+    approved = cur.fetchone()
+
+    if not approved or approved[0] == 0:
+        return "Not verified"
+
+    cur.execute("SELECT status FROM elections WHERE id=?", (election_id,))
+    status = cur.fetchone()
+
+    if not status or status[0] == "stopped":
+        return "Election not running"
+
+    cur.execute("SELECT * FROM candidates WHERE election_id=?", (election_id,))
+    candidates = cur.fetchall()
+
+    message = None
+
+    if request.method == 'POST':
+        candidate = request.form['candidate']
+
+        cur.execute("SELECT * FROM votes WHERE username=? AND election_id=?", (username,election_id))
+
+        if cur.fetchone():
+            message = "Already voted"
+        else:
+            cur.execute(
+                "INSERT INTO votes (election_id,username,candidate) VALUES (?,?,?)",
+                (election_id,username,candidate)
+            )
+            conn.commit()
+            message = "Vote success"
+
+    conn.close()
+
+    return render_template("vote.html", candidates=candidates, message=message)
+
+
+# ---------------- RESULT----------------
+
+@app.route('/results/<int:election_id>')
+def results(election_id):
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+    SELECT c.name, c.party, c.photo, c.symbol, COUNT(v.id)
+    FROM candidates c
+    LEFT JOIN votes v
+    ON c.name = v.candidate AND c.election_id = v.election_id
+    WHERE c.election_id=?
+    GROUP BY c.id
+    ORDER BY COUNT(v.id) DESC
+    """, (election_id,))
+
+    data = cur.fetchall()
+    conn.close()
+
+    if not data:
+        return "No candidates found"
+
+    total_votes = sum([row[4] for row in data])
+
+    winner = None
+    is_tie = False
+
+    if total_votes > 0:
+        max_votes = data[0][4]
+        top = [row for row in data if row[4] == max_votes]
+
+        if len(top) > 1:
+            is_tie = True
+        else:
+            winner = data[0]
+
+    return render_template(
+        "result.html",
+        candidates=data,
+        winner=winner,
+        is_tie=is_tie,
+        total_votes=total_votes,
+        votes=[row[4] for row in data]
+    )
 
 # ---------------- ADMIN LOGIN ----------------
 
@@ -308,7 +403,7 @@ def logout():
     return redirect('/')
 
 
-# ---------------- RUN (FIXED FOR RENDER) ----------------
+# ---------------- RUN RENDER---------------
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
