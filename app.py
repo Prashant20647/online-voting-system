@@ -95,7 +95,7 @@ def init_db():
     conn.close()
 
 
-init_db()
+
 
 
 # ---------------- HOME ----------------
@@ -257,19 +257,34 @@ def results(election_id):
     WHERE c.election_id=?
     GROUP BY c.id
     ORDER BY COUNT(v.id) DESC
-    """),(election_id,))
+    """), (election_id,))
 
     data = cur.fetchall()
     conn.close()
 
-    candidates = data
-    votes = [row[4] for row in data]
-    winner = data[0] if data else None
+    # total votes
+    total_votes = sum([row[4] for row in data])
+
+    winner = None
+    is_tie = False
+
+    if total_votes == 0:
+        winner = None   # no votes
+    else:
+        max_votes = data[0][4]
+        top_candidates = [row for row in data if row[4] == max_votes]
+
+        if len(top_candidates) > 1:
+            is_tie = True
+            winner = None
+        else:
+            winner = data[0]
 
     return render_template("result.html",
-                           candidates=candidates,
-                           votes=votes,
-                           winner=winner)
+                           candidates=data,
+                           winner=winner,
+                           is_tie=is_tie,
+                           total_votes=total_votes)
 
 
 # ---------------- ADMIN ----------------

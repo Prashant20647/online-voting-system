@@ -92,9 +92,23 @@ font-weight:bold;
 
 <h2 class="text-center mb-4">📊 Election Results</h2>
 
-<!-- ✅ WINNER SECTION FIXED -->
+<!-- ✅ RESULT LOGIC -->
 
-{% if winner %}
+{% if total_votes == 0 %}
+
+<div class="winner-box">
+<h2>❗ No votes yet</h2>
+<p>Voting has not started or no one has voted.</p>
+</div>
+
+{% elif is_tie %}
+
+<div class="winner-box">
+<h2>🤝 It's a Tie!</h2>
+<p>Multiple candidates have same highest votes.</p>
+</div>
+
+{% elif winner %}
 
 <div class="winner-box">
 
@@ -108,7 +122,7 @@ font-weight:bold;
 
 <img src="{{ url_for('static', filename='images/' + winner[3]) }}" class="symbol">
 
-<p>Votes : {{ votes[0] }}</p>
+<p>Votes : {{ winner[4] }}</p>
 
 <p>Congratulations 🎉</p>
 
@@ -117,8 +131,6 @@ font-weight:bold;
 {% endif %}
 
 <div class="row">
-
-{% set total = votes | sum %}
 
 {% for i in range(candidates|length) %}
 
@@ -133,17 +145,15 @@ font-weight:bold;
 {% endif %}
 </div>
 
-<!-- ✅ FIXED DATA ACCESS -->
-
 <h4>{{ candidates[i][0] }}</h4>
 
 <p class="party">Party : {{ candidates[i][1] }}</p>
 
 <img src="{{ url_for('static', filename='images/' + candidates[i][3]) }}" class="symbol">
 
-<p>Votes: {{ votes[i] }}</p>
+<p>Votes: {{ candidates[i][4] }}</p>
 
-{% set percent = (votes[i] / total * 100) if total > 0 else 0 %}
+{% set percent = (candidates[i][4] / total_votes * 100) if total_votes > 0 else 0 %}
 
 <div class="progress mb-2">
 <div class="progress-bar bg-warning" style="width: {{ percent }}%"></div>
@@ -165,7 +175,9 @@ font-weight:bold;
 
 <script>
 
-const votes = {{ votes | tojson }};
+// ✅ FIX: derive votes safely from candidates
+const votes = {{ candidates | tojson }}.map(c => c[4]);
+const total = votes.reduce((a,b)=>a+b,0);
 
 for(let i=0;i<votes.length;i++){
 
@@ -176,7 +188,7 @@ type:'doughnut',
 data:{
 labels:['Votes','Remaining'],
 datasets:[{
-data:[votes[i], Math.max(1, votes.reduce((a,b)=>a+b,0)-votes[i])],
+data:[votes[i], Math.max(1, total - votes[i])],
 backgroundColor:['#ffb703','#333']
 }]
 },
@@ -187,7 +199,7 @@ plugins:{legend:{display:false}}
 
 }
 
-// 🎉 Confetti for winner
+// 🎉 Confetti only if winner exists
 {% if winner %}
 confetti({
 particleCount:250,
