@@ -2,7 +2,6 @@
 <html>
 
 <head>
-
 <title>Election Results</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -20,21 +19,36 @@ font-family:'Segoe UI',sans-serif;
 color:white;
 }
 
-.chart-box{
-background:rgba(255,255,255,0.08);
-padding:30px;
-border-radius:20px;
-backdrop-filter:blur(10px);
-box-shadow:0 10px 25px rgba(0,0,0,0.4);
-}
-
 .winner-box{
 background:linear-gradient(135deg,#ffd166,#ffb703);
-padding:30px;
+padding:35px;
 border-radius:20px;
 text-align:center;
-margin-bottom:30px;
+margin-bottom:40px;
 color:black;
+animation:pop 0.8s ease;
+}
+
+@keyframes pop{
+0%{transform:scale(0.8);opacity:0;}
+100%{transform:scale(1);opacity:1;}
+}
+
+.winner-name{
+font-size:28px;
+font-weight:bold;
+animation: glow 1s infinite alternate;
+}
+
+@keyframes glow{
+from{ text-shadow:0 0 10px #fff; }
+to{ text-shadow:0 0 25px #00ff9d; }
+}
+
+canvas{
+background: rgba(255,255,255,0.05);
+padding:20px;
+border-radius:15px;
 }
 
 </style>
@@ -51,33 +65,49 @@ color:black;
 
 <h2 class="text-center mb-4">📊 Election Results</h2>
 
+<!--  TOTAL SUMMARY -->
+<div class="text-center mb-4">
+<h4>📊 Total Votes Cast: {{ total_votes }}</h4>
+
+{% if winner %}
+<h5>🏆 Winner: {{ winner[0] }} ({{ winner[4] }} votes)</h5>
+{% endif %}
+</div>
+
 <!-- RESULT LOGIC -->
 
 {% if total_votes == 0 %}
 
 <div class="winner-box">
 <h2>❗ No votes yet</h2>
+<p>Voting has not started or no one has voted.</p>
 </div>
 
 {% elif is_tie %}
 
 <div class="winner-box">
 <h2>🤝 It's a Tie!</h2>
+<p>Multiple candidates have equal votes.</p>
 </div>
 
 {% elif winner %}
 
 <div class="winner-box">
-<h2>🏆 Winner: {{ winner[0] }}</h2>
-<p>Party: {{ winner[1] }}</p>
-<p>Votes: {{ winner[4] }}</p>
+<h1>🏆 Winner</h1>
+
+<div class="winner-name">{{ winner[0] }}</div>
+
+<p>Party : {{ winner[1] }}</p>
+
+<h4>🏆 Winner Votes: {{ winner[4] }}</h4>
+<h5>📊 Total Votes: {{ total_votes }}</h5>
+
 </div>
 
 {% endif %}
 
-<!-- BAR GRAPH -->
-
-<div class="chart-box">
+<!-- GRAPH -->
+<div class="mt-5">
 <canvas id="barChart"></canvas>
 </div>
 
@@ -85,49 +115,101 @@ color:black;
 
 <script>
 
-// Prepare data
-const data = {{ candidates | tojson }};
+try {
 
-const names = data.map(c => c[0]);
+const data = {{ candidates | tojson | safe }};
+
+if(data && data.length > 0){
+
+const labels = data.map(c => c[0]);
 const votes = data.map(c => c[4]);
 
-// Create Bar Chart
-const ctx = document.getElementById('barChart');
+const maxVotes = Math.max(...votes);
+
+const colors = votes.map(v => 
+    v === maxVotes 
+    ? 'rgba(0, 255, 157, 0.9)' 
+    : 'rgba(255, 183, 3, 0.8)'
+);
+
+const canvas = document.getElementById('barChart');
+
+if(canvas){
+
+const ctx = canvas.getContext('2d');
 
 new Chart(ctx, {
     type: 'bar',
     data: {
-        labels: names,
+        labels: labels,
         datasets: [{
-            label: 'Votes',
             data: votes,
-            borderWidth: 1
+            backgroundColor: colors,
+            borderRadius: 12,
+            borderSkipped: false
         }]
     },
     options: {
-        indexAxis: 'y',   // 👉 makes it horizontal
         responsive: true,
+        animation: {
+            duration: 1800,
+            easing: 'easeOutBounce'
+        },
         plugins: {
-            legend: { display: false }
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: function(context){
+                        return "Votes: " + context.raw;
+                    }
+                }
+            }
         },
         scales: {
             x: {
-                beginAtZero: true,
-                ticks: { color: 'white' }
+                ticks: { color: 'white' },
+                grid: { color: '#444' }
             },
             y: {
-                ticks: { color: 'white' }
+                beginAtZero: true,
+                ticks: { color: 'white' },
+                grid: { color: '#444' }
             }
         }
-    }
+    },
+    plugins: [{
+        id: 'valueOnTop',
+        afterDatasetsDraw(chart) {
+            const {ctx} = chart;
+            chart.data.datasets.forEach((dataset, i) => {
+                chart.getDatasetMeta(i).data.forEach((bar, index) => {
+                    ctx.fillStyle = "white";
+                    ctx.font = "bold 14px sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.fillText(
+                        dataset.data[index],
+                        bar.x,
+                        bar.y - 10
+                    );
+                });
+            });
+        }
+    }]
 });
 
+}
 
-// 🎉 Confetti for winner
+}
+
+} catch(e){
+console.error("Chart error:", e);
+}
+
+//  Confetti
 {% if winner %}
 confetti({
-particleCount:200,
-spread:120,
+particleCount:300,
+spread:150,
 origin:{y:0.6}
 });
 {% endif %}
